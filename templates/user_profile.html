@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Profile - {{ user.username }}</title>
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='dashboard.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='user_profile.css') }}">
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+
+<body>
+
+<header class="profile-header">
+    <div class="header-content">
+        <a href="/dashboard" class="menu-btn back-btn">← Back</a>
+
+        <div class="profile-title">
+            <h2>👤 {{ user.username }}</h2>
+            <span class="role-badge role-{{ user.role }}">
+                {{ user.role | upper }}
+            </span>
+        </div>
+    </div>
+</header>
+
+<section class="profile-container">
+
+    <!-- Work Activity Chart -->
+    <div class="card">
+        <h3>📊 Work Activity Overview</h3>
+
+        {% if chart_dates %}
+        <div class="chart-container">
+            <h4 id="totalWorkTime" style="margin-bottom:10px;"></h4>
+            <canvas id="activityChart"></canvas>
+        </div>
+        {% else %}
+            <p class="empty-msg">No work activity recorded yet.</p>
+        {% endif %}
+    </div>
+    <br>
+    <br>
+
+    <!-- Recent Logs Table -->
+    <div class="card">
+        <h3>🕒 Recent Login Sessions</h3>
+
+        {% if logs %}
+        <table class="logs-table">
+            <thead>
+                <tr>
+                    <th>Login Time</th>
+                    <th>Logout Time</th>
+                    <th>Duration (hrs)</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for log in logs %}
+                <tr>
+                    <td>{{ log.login_time.strftime('%Y-%m-%d %H:%M') }}</td>
+
+                    <td>
+                        {% if log.logout_time %}
+                            {{ log.logout_time.strftime('%Y-%m-%d %H:%M') }}
+                        {% else %}
+                            <span class="active-status">● Active Now</span>
+                        {% endif %}
+                    </td>
+
+                    <td>{{ log.formatted_duration }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+            <p class="empty-msg">No login activity found.</p>
+        {% endif %}
+    </div>
+
+
+    <!-- Admin Controls -->
+    {% if session.get('role') == 'admin' %}
+    <div class="card admin-card">
+        <h3>🔐 Admin Controls</h3>
+
+        <div class="password-control">
+            <input id="newAdminPass"
+                   type="password"
+                   placeholder="Enter new password">
+
+            <button class="menu-btn danger-btn"
+                    onclick="resetUserPass()">
+                Reset Password
+            </button>
+        </div>
+    </div>
+    {% endif %}
+
+</section>
+
+
+<script>
+    window.profileData = {
+        dates: {{ chart_dates | tojson }},
+        hours: {{ chart_hours | tojson }},
+        username: "{{ user.username }}"
+    };
+</script>
+
+<script src="{{ url_for('static', filename='user_profile.js') }}"></script>
+
+</body>
+</html>

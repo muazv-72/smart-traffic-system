@@ -1,0 +1,51 @@
+.profile-layout { max-width: 900px; margin: 20px auto; }
+.header-content { display: flex; gap: 15px; align-items: center; }
+.back-btn { background: rgba(255,255,255,0.15); border: none; }
+.graph-card, .logs-card, .admin-panel { margin-bottom: 25px; }
+.chart-container { position: relative; height: 300px; width: 100%; }
+.logs-table { width: 100%; text-align: left; border-collapse: collapse; margin-top: 10px; }
+.logs-table th { background: #f1f2f6; padding: 12px; border-bottom: 2px solid #ddd; }
+.logs-table td { padding: 10px 12px; border-bottom: 1px solid #eee; }
+.admin-panel { border-top: 4px solid #e74c3c; }
+.password-control { display: flex; gap: 10px; margin-top: 15px; }
+.danger-btn { background: #e74c3c !important; color: white; }
+body.dark-mode .logs-table th { background: #334155; color: white; }
+body.dark-mode .logs-table td { color: #e2e8f0; }
+.role-badge {
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: bold;
+    margin-left: 10px;
+}
+
+.role-admin {
+    background: #ff4d4d;
+    color: white;
+}
+
+.role-manager {
+    background: #ffa500;
+    color: white;
+}
+
+.role-user {
+    background: #3498db;
+    color: white;
+}
+
+.profile-title {
+    display: flex;
+    align-items: center;
+}
+
+.active-status {
+    color: #2ecc71;
+    font-weight: bold;
+}
+
+.empty-msg {
+    text-align: center;
+    opacity: 0.7;
+    padding: 20px;
+}

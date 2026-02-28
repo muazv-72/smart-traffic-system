@@ -1,0 +1,102 @@
+/* ================= GLOBAL ================= */
+
+* {
+  box-sizing: border-box;
+  font-family: "Segoe UI", Arial, sans-serif;
+}
+
+body {
+  margin: 0;
+  height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+
+  background: linear-gradient(-45deg, #0f2027, #203a43, #2c5364, #1c1c1c);
+  background-size: 400% 400%;
+  animation: gradientMove 12s ease infinite;
+}
+
+/* Animated Background */
+@keyframes gradientMove {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* ================= LOGIN CARD ================= */
+
+.login-wrapper {
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(15px);
+  padding: 40px;
+  width: 360px;
+  border-radius: 18px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+  text-align: center;
+  animation: fadeSlide 0.8s ease;
+  border: 1px solid rgba(255,255,255,0.1);
+}
+
+/* Smooth Entry */
+@keyframes fadeSlide {
+  from {
+    opacity: 0;
+    transform: translateY(40px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ================= INPUT FIELDS ================= */
+
+.login-wrapper input {
+  width: 100%;
+  padding: 12px 14px;
+  margin-bottom: 16px;
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.2);
+  background: rgba(255,255,255,0.1);
+  color: white;
+  outline: none;
+  transition: 0.3s ease;
+}
+
+/* Placeholder */
+.login-wrapper input::placeholder {
+  color: rgba(255,255,255,0.6);
+}
+
+/* Focus Glow */
+.login-wrapper input:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 15px rgba(59,130,246,0.6);
+  background: rgba(255,255,255,0.15);
+}
+
+/* ================= BUTTON ================= */
+
+.login-wrapper button {
+  width: 100%;
+  padding: 12px;
+  background: linear-gradient(45deg, #22c55e, #16a34a);
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  font-weight: bold;
+  transition: 0.3s ease;
+}
+
+/* Hover Effect */
+.login-wrapper button:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 25px rgba(34,197,94,0.6);
+}
+
+/* Click Effect */
+.login-wrapper button:active {
+  transform: scale(0.97);
+}

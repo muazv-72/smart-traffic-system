@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>{{ hub_name }} - Traffic Vision</title>
+  <link rel="stylesheet" href="/static/hub.css">
+</head>
+<body>
+<header>
+  <div class="header-left">
+    <a href="/" class="back-btn">← Back</a>
+    <h2>{{ hub_name }}</h2>
+  </div>
+  <div class="menu-container">
+    <select class="mode-select" onchange="setMode(this.value)">
+      <option value="manual" {% if mode == 'manual' %}selected{% endif %}>MANUAL</option>
+      <option value="auto" {% if mode == 'auto' %}selected{% endif %}>AUTO</option>
+    </select>
+    <button class="menu-btn" onclick="toggleMenu()">☰ Menu</button>
+    <div id="myDropdown" class="dropdown-content">
+      <div class="menu-item info">Logged in as: <b>{{ role }}</b></div>
+      <button class="menu-item" onclick="toggleTheme()">🌓 Switch Theme</button>
+      <a href="/logout" class="menu-item logout">🚪 Logout</a>
+    </div>
+  </div>
+</header>
+<section class="layout">
+  <div class="grid">
+    {% for id, cam in cameras.items() %}
+    <div class="card {{ cam.light }}" data-cid="{{ id }}">
+      <div class="card-header">
+        <h3>{{ cam.name }}</h3>
+        <span class="status-dot {{ cam.light }}"></span>
+      </div>
+      <div class="video-container">
+        <img src="/video/{{ id }}" src="/video/{{ id }}" data-cid="{{ id }}" onerror="this.src='https://via.placeholder.com/300x180?text=No+Signal'">
+        <button class="maximize-btn" onclick="openViewModal('{{ id }}', '{{ cam.name }}')" title="Expand View">⛶</button>
+      </div>
+      <div class="card-stats">
+        <span>🚗 Vehicles: <b class="vehicle-count">{{ cam.vehicles }}</b></span>
+        <span>🚦 Light: <b class="light-text">{{ cam.light|upper }}</b></span>
+      </div>
+      <div class="actions">
+        <button class="green-btn toggle-btn" onclick="toggleLight('{{ id }}')"{% if mode == "auto" %}disabled{% endif %}>
+          {% if cam.light == "green" %}
+          Set RED
+          {% else %}
+          Set GREEN
+          {% endif %}
+        </button>
+        <button class="edit-btn" onclick="openEditModal('{{ id }}', '{{ cam.name }}', '{{ cam.ip }}')">⚙️ Settings</button>
+      </div>
+    </div>
+    {% endfor %}
+    <div class="card add-card" onclick="openAddCamera()">
+      <div class="plus-icon">+</div>
+      <p>Add Camera</p>
+    </div>
+  </div>
+</section>
+
+<!-- Modals for Add/Edit/View -->
+<div id="addCameraModal" class="modal">
+  <div class="modal-content" style="width: 600px;"> 
+    <h3>Add New Camera</h3>
+    <div style="display: flex; gap: 10px;">
+        <input id="camName" placeholder="Road Name" style="flex:1">
+        <input id="camPath" placeholder="Video Path / IP" style="flex:2">
+        <button onclick="loadSnapshot()" style="padding: 10px;">📸 Fetch</button>
+    </div>
+    <div id="canvas-container" style="position: relative; width: 100%; height: 300px; background: #eee; margin-top: 10px; display: none;">
+        <canvas id="roiCanvas" style="width: 100%; height: 100%; object-fit: contain; cursor: crosshair;"></canvas>
+        <button onclick="resetROI()" style="position: absolute; top: 5px; right: 5px; background: #e74c3c; color: white; border: none; padding: 5px;">Reset</button>
+    </div>
+    <input type="hidden" id="roiData"> <input type="hidden" id="currentHubId" value="{{ hub_id }}">
+    <div class="modal-btns">
+      <button class="btn-create" onclick="saveCamera()">Add Camera</button>
+      <button class="btn-cancel" onclick="closeAddCamera()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<div id="editCameraModal" class="modal">
+  <div class="modal-content" style="width: 500px;">
+    <h3>Camera Settings</h3>
+    <input type="hidden" id="editCamId">
+    <input id="editCamName" placeholder="Name">
+    <input id="editCamPath" placeholder="Path">
+    <div id="edit-canvas-container" style="position: relative; width: 100%; height: 250px; background: #eee; margin-top: 15px;">
+        <canvas id="editRoiCanvas" style="width: 100%; height: 100%; object-fit: contain;"></canvas>
+        <button onclick="resetEditROI()" style="position: absolute; top: 5px; right: 5px; background: #e74c3c; color: white;">Reset</button>
+    </div>
+    <input type="hidden" id="editRoiData">
+    <div class="modal-btns">
+      <button class="btn-create" onclick="saveEditCamera()">Save</button>
+      <button class="btn-cancel" onclick="closeEditModal()">Cancel</button>
+    </div>
+    <hr><button onclick="confirmDelete()" class="delete-full-btn">🗑️ Delete</button>
+  </div>
+</div>
+
+<div id="viewModal" class="modal" onclick="if(event.target === this) closeViewModal()">
+  <div class="view-modal-content">
+    <div class="view-header">
+      <h3 id="viewRoadName">Road Name</h3>
+      <button class="close-view-btn" onclick="closeViewModal()">X</button>
+    </div>
+    <img id="largeVideoFeed" src="">
+    <div class="view-footer">
+      <span>🚗 Vehicles: <b id="viewVehicleCount">0</b></span>
+      <span>🚦 Status: <b id="viewLightStatus">RED</b></span>
+    </div>
+  </div>
+</div>
+<script>const HUB_ID = "{{ hub_id }}"; </script>
+<script src="/static/hub.js"></script>
+
+</body>
+</html>

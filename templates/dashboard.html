@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Dashboard</title>
+
+  <link rel="stylesheet" href="{{ url_for('static', filename='dashboard.css') }}">
+</head>
+<body>
+<header class="header-container">
+    <div class="logo-title">
+        <img src="{{ url_for('static', filename='logo.png') }}" 
+             alt="Smart Traffic Logo" 
+             class="logo">
+        <h2 class="title">Traffic Dashboard</h2>
+    </div>
+
+  <div class="menu-container">
+    <button class="menu-btn" onclick="toggleMenu()">☰ Menu</button>
+
+    <div id="myDropdown" class="dropdown-content dark-menu">
+
+      <div class="menu-item info">
+        Logged in as: <b>{{ role }}</b>
+      </div>
+
+      <hr>
+
+      {% if role in ['admin','manager'] %}
+      <button class="menu-item" onclick="openUserModal()">
+        👤 Create New User
+      </button>
+      {% endif %}
+
+      <button class="menu-item" onclick="openPasswordModal()">
+        🔑 Change Password
+      </button>
+
+      <button class="menu-item" onclick="toggleTheme()">
+        🌓 Switch Theme
+      </button>
+
+      <a href="/logout" class="menu-item logout">
+        🚪 Logout
+      </a>
+
+    </div>
+  </div>
+</header>
+<section class="layout">
+  <div class="hubs">
+    <h3>Hubs (Sorted by Traffic)</h3>
+    {% for id, hub in hubs %}
+    <div class="hub-card">
+      <div class="hub-info">
+        <h5>
+          {{hub.name}} Traffic:
+          <span class="hub-traffic" data-hub="{{hub.id}}">
+            {{hub.traffic}}
+          </span>
+        </h5>
+      </div>
+      <div class="hub-actions">
+        <a href="/hub/{{ id }}">Open</a>
+        <a href="/analysis/{{ hub.id }}" class="analysis-btn">📊 Analysis</a>
+
+        {% if role in ["manager", "admin"] %}
+        <button class="del-btn" onclick="deleteHub('{{ id }}')">Delete</button>
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+    {% if role in ["admin", "manager"] %}
+    <div class="hub-card add-hub-row" onclick="openHubModal()">
+      <span>+ Add New Hub</span>
+    </div>
+    {% endif %}
+  </div>
+  <div class="users">
+    <h3>Team Status</h3>
+    <ul>
+      {% for u in my_users %}
+      <li class="user-item">
+          <div style="display: flex; align-items: center; gap: 10px;">
+             <span>{{ u.username }}</span>
+             <span class="status-online">{{ u.duration }}</span>
+          </div>
+          <a href="/user/{{ u.username }}" class="view-btn">View Activity</a>
+      </li>
+      {% endfor %}
+    </ul>
+  </div>
+</section>
+
+<!-- Modals -->
+<div id="userModal" class="modal">
+  <div class="modal-content">
+    <h3>Create New Account</h3>
+    <input id="new_user" placeholder="Username">
+    <input id="new_pass" type="password" placeholder="Password">
+    <select id="new_role" style="margin-top:5px;">
+        <option value="user">User</option>
+        {% if role == 'admin' %} <option value="manager">Manager</option> {% endif %}
+    </select>
+    {% if role == 'admin' %}
+    <select id="assign_manager" style="width: 100%; margin-top:5px;">
+        <option value="{{ session.username }}">-- Under Me --</option>
+        {% for m in managers %} <option value="{{ m.username }}">Manager: {{ m.username }}</option> {% endfor %}
+    </select>
+    {% endif %}
+    <div class="modal-btns">
+      <button class="btn-create" onclick="createUser()">Create</button>
+      <button class="btn-cancel" onclick="closeUserModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<div id="hubModal" class="modal">
+  <div class="modal-content">
+    <h3>Add New Hub</h3>
+    <input id="new_hub_name" placeholder="Hub Name">
+    <div class="modal-btns">
+      <button class="btn-create" onclick="submitNewHub()">Add</button>
+      <button class="btn-cancel" onclick="closeHubModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<div id="passwordModal" class="modal">
+  <div class="modal-content">
+    <h3>Change Password</h3>
+    <input type="password" id="oldPass" placeholder="Old Password">
+    <input type="password" id="newPass" placeholder="New Password">
+    <div class="modal-btns">
+      <button class="btn-create" onclick="submitPasswordChange()">Update</button>
+      <button class="btn-cancel" onclick="closePasswordModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+<script src="/static/dashboard.js"></script>
+</body>
+</html>
