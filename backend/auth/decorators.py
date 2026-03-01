@@ -1,5 +1,7 @@
 from functools import wraps
-from flask import session, redirect, url_for
+
+from flask import redirect, session, url_for
+
 
 # Security Decorator: Protects routes from unauthenticated users
 def login_required(fn):
@@ -8,4 +10,5 @@ def login_required(fn):
         if not session.get("logged_in"):
             return redirect(url_for("login"))
         return fn(*args, **kwargs)
+
     return wrapper

@@ -1,11 +1,14 @@
-from flask import Blueprint, render_template, session, request, jsonify
-from backend.auth.decorators import login_required
-from backend.database import db, Hub, User, UserAssignment, UserLog
-from backend.state import USERS_ONLINE,LIVE_TRAFFIC_DATA    
 import uuid
 from datetime import datetime
 
+from flask import Blueprint, jsonify, render_template, request, session
+
+from backend.auth.decorators import login_required
+from backend.database import Hub, User, UserAssignment, UserLog, db
+from backend.state import LIVE_TRAFFIC_DATA, USERS_ONLINE
+
 dashboard_bp = Blueprint("dashboard", __name__)
+
 
 @dashboard_bp.route("/dashboard")
 @login_required
@@ -14,27 +17,43 @@ def dashboard():
     current_username = session.get("username")
     all_hubs = Hub.query.all()
     # Sort Hubs by Traffic Volume
-    hubs_sorted = sorted([(h.id, h) for h in all_hubs], key=lambda x: x[1].traffic, reverse=True)
+    hubs_sorted = sorted(
+        [(h.id, h) for h in all_hubs], key=lambda x: x[1].traffic, reverse=True
+    )
 
     my_users = []
-    all_managers = User.query.filter_by(role='manager').all()
+    all_managers = User.query.filter_by(role="manager").all()
 
     # Role-Based User Viewing Logic
     if current_role == "admin":
-        db_users = User.query.filter_by(role='manager').all()
+        db_users = User.query.filter_by(role="manager").all()
     elif current_role == "manager":
-        assignments = UserAssignment.query.filter_by(manager_username=current_username).all()
+        assignments = UserAssignment.query.filter_by(
+            manager_username=current_username
+        ).all()
         assigned_user_names = [a.user_username for a in assignments]
-        db_users = User.query.filter(User.username.in_(assigned_user_names)).all() if assigned_user_names else []
+        db_users = (
+            User.query.filter(User.username.in_(assigned_user_names)).all()
+            if assigned_user_names
+            else []
+        )
     else:
         db_users = []
 
     for u in db_users:
-        if u.username == current_username: continue
+        if u.username == current_username:
+            continue
         status_text = "Online" if u.username in USERS_ONLINE else "Offline"
         my_users.append({"username": u.username, "duration": status_text})
 
-    return render_template("dashboard.html", hubs=hubs_sorted, my_users=my_users, role=current_role, managers=all_managers)
+    return render_template(
+        "dashboard.html",
+        hubs=hubs_sorted,
+        my_users=my_users,
+        role=current_role,
+        managers=all_managers,
+    )
+
 
 @dashboard_bp.route("/add_hub", methods=["POST"])
 @login_required
@@ -46,6 +65,7 @@ def add_hub():
     db.session.commit()
     return jsonify({"success": True})
 
+
 @dashboard_bp.route("/delete_hub", methods=["POST"])
 @login_required
 def delete_hub():
@@ -56,25 +76,40 @@ def delete_hub():
         return jsonify({"success": True})
     return jsonify({"error": "Not found"}), 404
 
+
 @dashboard_bp.route("/create_user", methods=["POST"])
 @login_required
 def create_user():
     data = request.json
     if User.query.filter_by(username=data["username"]).first():
         return jsonify({"error": "User exists"}), 400
-    
-    new_user = User(username=data["username"], password=data["password"], role=data["role"], created_by=session.get("username"))
+
+    new_user = User(
+        username=data["username"],
+        password=data["password"],
+        role=data["role"],
+        created_by=session.get("username"),
+    )
     db.session.add(new_user)
     db.session.commit()
 
     # Assign User to Manager if applicable
     if data["role"] == "user":
-        mgr = data.get("assigned_manager") if session["role"] == "admin" else session.get("username")
+        mgr = (
+            data.get("assigned_manager")
+            if session["role"] == "admin"
+            else session.get("username")
+        )
         if mgr:
-            db.session.add(UserAssignment(manager_username=mgr, user_username=data["username"]))
+            db.session.add(
+                UserAssignment(
+                    manager_username=mgr, user_username=data["username"]
+                )
+            )
             db.session.commit()
-    
+
     return jsonify({"success": True})
+
 
 @dashboard_bp.route("/change_password", methods=["POST"])
 @login_required
@@ -86,6 +121,7 @@ def change_password():
         db.session.commit()
         return jsonify({"success": True})
     return jsonify({"error": "Incorrect password"}), 400
+
 
 @dashboard_bp.route("/user/<username>")
 @login_required
@@ -101,8 +137,7 @@ def user_profile(username):
     # MANAGER can only see assigned users
     elif current_role == "manager":
         assignment = UserAssignment.query.filter_by(
-            manager_username=current_username,
-            user_username=username
+            manager_username=current_username, user_username=username
         ).first()
 
         if not assignment:
@@ -111,8 +146,12 @@ def user_profile(username):
     # ADMIN can see anyone (no restriction)
 
     target_user = User.query.filter_by(username=username).first()
-    logs = UserLog.query.filter_by(username=username)\
-        .order_by(UserLog.login_time.desc()).limit(10).all()
+    logs = (
+        UserLog.query.filter_by(username=username)
+        .order_by(UserLog.login_time.desc())
+        .limit(10)
+        .all()
+    )
 
     dates = []
     durations = []
@@ -128,13 +167,13 @@ def user_profile(username):
         hours = total_seconds // 3600
         minutes = (total_seconds % 3600) // 60
 
-    # For chart (decimal hours)
+        # For chart (decimal hours)
         durations.append(total_seconds / 3600)
 
-    # For x-axis
+        # For x-axis
         dates.append(log.login_time.strftime("%d-%b"))
 
-    # For table display
+        # For table display
         log.formatted_duration = f"{hours}h {minutes}m"
 
     return render_template(
@@ -142,13 +181,15 @@ def user_profile(username):
         user=target_user,
         logs=logs,
         chart_dates=dates[::-1],
-        chart_hours=durations[::-1]
+        chart_hours=durations[::-1],
     )
+
 
 @dashboard_bp.route("/admin_reset_password", methods=["POST"])
 @login_required
 def admin_reset_password():
-    if session["role"] != "admin": return jsonify({"error": "Unauthorized"}), 403
+    if session["role"] != "admin":
+        return jsonify({"error": "Unauthorized"}), 403
     data = request.json
     target_user = User.query.filter_by(username=data["username"]).first()
     if target_user:
@@ -156,6 +197,7 @@ def admin_reset_password():
         db.session.commit()
         return jsonify({"success": True})
     return jsonify({"error": "User not found"}), 404
+
 
 @dashboard_bp.route("/api/hub-traffic")
 def get_hub_traffic():
@@ -166,14 +208,14 @@ def get_hub_traffic():
         total_traffic = 0
 
         for cam in hub.cameras:
-            total_traffic += LIVE_TRAFFIC_DATA.get(cam.id, {}).get("vehicles",0)
+            total_traffic += LIVE_TRAFFIC_DATA.get(cam.id, {}).get(
+                "vehicles", 0
+            )
 
-        data.append({
-            "hub_id": hub.id,
-            "traffic": total_traffic
-        })
+        data.append({"hub_id": hub.id, "traffic": total_traffic})
 
     return jsonify(data)
+
 
 @dashboard_bp.route("/analysis/<hub_id>")
 def analysis_page(hub_id):
@@ -195,12 +237,9 @@ def analysis_page(hub_id):
             "buses": vehicles.get("buses", 0),
             "trucks": vehicles.get("trucks", 0),
             "motorcycles": vehicles.get("motorcycles", 0),
-            "ambulances": vehicles.get("ambulances", 0)
+            "ambulances": vehicles.get("ambulances", 0),
         }
 
     return render_template(
-        "analysis.html",
-        hub=hub,
-        lanes=lanes,
-        cumulative=cumulative
+        "analysis.html", hub=hub, lanes=lanes, cumulative=cumulative
     )

@@ -1,7 +1,10 @@
-from backend.ai.models import model_traffic, model_ambulance
+import time
+
 import cv2
 import numpy as np
-import time
+
+from backend.ai.models import model_ambulance, model_traffic
+
 
 # =================================================
 # AI DETECTION
@@ -13,7 +16,7 @@ def detect_vehicles_and_calculate_score(cam):
 
     cap = cv2.VideoCapture(cam.ip)
 
-    if cam.ip.endswith('.mp4') or cam.ip.endswith('.avi'):
+    if cam.ip.endswith(".mp4") or cam.ip.endswith(".avi"):
         total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
         if total_frames > 0:
             current_frame = int(time.time() * 10) % total_frames
@@ -28,9 +31,9 @@ def detect_vehicles_and_calculate_score(cam):
     roi_points = None
     if cam.roi:
         try:
-            coords = list(map(int, cam.roi.split(',')))
+            coords = list(map(int, cam.roi.split(",")))
             roi_points = np.array(coords, dtype=np.int32).reshape((-1, 1, 2))
-        except:
+        except Exception:
             pass
 
     # 🚑 Ambulance Detection
@@ -50,14 +53,14 @@ def detect_vehicles_and_calculate_score(cam):
             if int(box.cls[0]) in [2, 3, 5, 7]:
 
                 x1, y1, x2, y2 = map(int, box.xyxy[0])
-                cx, cy = (x1 + x2)//2, (y1 + y2)//2
+                cx, cy = (x1 + x2) // 2, (y1 + y2) // 2
 
                 if roi_points is not None:
                     if cv2.pointPolygonTest(roi_points, (cx, cy), False) < 0:
                         continue
 
-                width = x2-x1
-                height = y2-y1
+                width = x2 - x1
+                height = y2 - y1
                 area = width * height
 
                 weight = 1.0

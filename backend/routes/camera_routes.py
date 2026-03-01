@@ -1,19 +1,26 @@
-from flask import Blueprint, render_template, request, Response, jsonify, session
-from backend.auth.decorators import login_required
-from backend.database import db, Hub, Camera
-from backend.state import LIVE_TRAFFIC_DATA, HUB_STATES, HUB_MODE, GLOBAL_MODE
-from backend.ai.models import model_traffic, model_ambulance
-from backend.ai.auto_mode import run_auto_mode
-
-import cv2
-import time
+import base64
 import threading
 import uuid
-import numpy as np
-import base64
 
+import cv2
+import numpy as np
+from flask import (
+    Blueprint,
+    Response,
+    jsonify,
+    render_template,
+    request,
+    session,
+)
+
+from backend.ai.auto_mode import run_auto_mode
+from backend.ai.models import model_ambulance, model_traffic
+from backend.auth.decorators import login_required
+from backend.database import Camera, Hub, db
+from backend.state import GLOBAL_MODE, HUB_MODE, HUB_STATES, LIVE_TRAFFIC_DATA
 
 camera_bp = Blueprint("camera", __name__)
+
 
 # =================================================
 # BACKGROUND THREAD
@@ -23,21 +30,23 @@ def start_background_thread(app):
     t.daemon = True
     t.start()
 
+
 @camera_bp.route("/hub/<hub_id>")
 @login_required
 def hub(hub_id):
     hub = Hub.query.get_or_404(hub_id)
     cameras = Camera.query.filter_by(hub_id=hub_id).all()
     cameras_dict = {c.id: c for c in cameras}
-    mode = HUB_MODE.get(hub_id,"auto")
+    mode = HUB_MODE.get(hub_id, "auto")
     return render_template(
-        "hub.html", 
-        hub_id=hub.id, 
-        hub_name=hub.name, 
-        cameras=cameras_dict, 
-        mode = mode, 
-        role=session.get("role")
+        "hub.html",
+        hub_id=hub.id,
+        hub_name=hub.name,
+        cameras=cameras_dict,
+        mode=mode,
+        role=session.get("role"),
     )
+
 
 # Snapshot for ROI Drawing Tool
 @camera_bp.route("/get_snapshot", methods=["POST"])
@@ -46,21 +55,23 @@ def get_snapshot():
     cap = cv2.VideoCapture(path)
     success, frame = cap.read()
     cap.release()
-    if not success: return jsonify({"error": "Error reading video"}), 400
-    _, buffer = cv2.imencode('.jpg', frame)
-    return jsonify({"image": base64.b64encode(buffer).decode('utf-8')})
+    if not success:
+        return jsonify({"error": "Error reading video"}), 400
+    _, buffer = cv2.imencode(".jpg", frame)
+    return jsonify({"image": base64.b64encode(buffer).decode("utf-8")})
+
 
 @camera_bp.route("/set_mode", methods=["POST"])
 @login_required
 def set_mode_route():
-    data=request.json
+    data = request.json
 
     if not data:
-        return jsonify({"error":"No data received"}),400
-    
-    hub_id=data["hub_id"]
+        return jsonify({"error": "No data received"}), 400
 
-    mode=data["mode"]
+    hub_id = data["hub_id"]
+
+    mode = data["mode"]
 
     if not hub_id:
         return jsonify({"error": "hub_id missing"}), 400
@@ -68,24 +79,33 @@ def set_mode_route():
     if not mode:
         return jsonify({"error": "mode missing"}), 400
 
-    HUB_MODE[hub_id]=mode
+    HUB_MODE[hub_id] = mode
 
     if hub_id in HUB_STATES:
         del HUB_STATES[hub_id]
 
     print(f"⚙ Mode Changed → Hub {hub_id} = {mode}")
 
-    return jsonify({"success":True})
+    return jsonify({"success": True})
+
 
 @camera_bp.route("/add_camera", methods=["POST"])
 @login_required
 def add_camera():
     data = request.json
     new_id = f"cam_{uuid.uuid4().hex[:6]}"
-    new_cam = Camera(id=new_id, name=data["name"], ip=data["ip"], hub_id=data["hub_id"], roi=data.get("roi"), light="red")
+    new_cam = Camera(
+        id=new_id,
+        name=data["name"],
+        ip=data["ip"],
+        hub_id=data["hub_id"],
+        roi=data.get("roi"),
+        light="red",
+    )
     db.session.add(new_cam)
     db.session.commit()
     return jsonify({"ok": True})
+
 
 @camera_bp.route("/edit_camera", methods=["POST"])
 @login_required
@@ -95,10 +115,12 @@ def edit_camera():
     if cam:
         cam.name = data.get("name", cam.name)
         cam.ip = data.get("ip", cam.ip)
-        if "roi" in data: cam.roi = data["roi"]
+        if "roi" in data:
+            cam.roi = data["roi"]
         db.session.commit()
         return jsonify({"success": True})
     return jsonify({"error": "Not found"}), 404
+
 
 @camera_bp.route("/delete_camera", methods=["POST"])
 @login_required
@@ -111,6 +133,7 @@ def delete_camera():
         return jsonify({"success": True})
     return jsonify({"error": "Not found"}), 404
 
+
 # --- VIDEO STREAM ROUTE (With Visualization Fixes) ---
 @camera_bp.route("/video/<cid>")
 def video(cid):
@@ -122,9 +145,9 @@ def video(cid):
     roi_points = []
     if cam.roi:
         try:
-            coords = list(map(int, cam.roi.split(',')))
+            coords = list(map(int, cam.roi.split(",")))
             roi_points = np.array(coords, dtype=np.int32).reshape((-1, 1, 2))
-        except:
+        except Exception:
             pass
 
     def generate(path):
@@ -152,11 +175,7 @@ def video(cid):
             # =====================================================
             if model_traffic:
                 results_traffic = model_traffic(
-                    frame,
-                    conf=0.25,
-                    iou=0.5,
-                    agnostic_nms=True,
-                    verbose=False
+                    frame, conf=0.25, iou=0.5, agnostic_nms=True, verbose=False
                 )
 
                 for r in results_traffic:
@@ -170,7 +189,12 @@ def video(cid):
 
                         # ROI filtering
                         if len(roi_points) > 0:
-                            if cv2.pointPolygonTest(roi_points, (cx, cy), False) < 0:
+                            if (
+                                cv2.pointPolygonTest(
+                                    roi_points, (cx, cy), False
+                                )
+                                < 0
+                            ):
                                 continue
 
                         # Count vehicles
@@ -184,17 +208,16 @@ def video(cid):
                             truck_count += 1
 
                         # Draw green box
-                        cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
+                        cv2.rectangle(
+                            frame, (x1, y1), (x2, y2), (0, 255, 0), 2
+                        )
 
             # =====================================================
             # 🚑 AMBULANCE MODEL (CUSTOM)
             # =====================================================
             if model_ambulance:
                 results_ambulance = model_ambulance(
-                    frame,
-                    conf=0.25,
-                    iou=0.5,
-                    verbose=False
+                    frame, conf=0.25, iou=0.5, verbose=False
                 )
 
                 for r in results_ambulance:
@@ -205,23 +228,30 @@ def video(cid):
 
                         # ROI filtering
                         if len(roi_points) > 0:
-                            if cv2.pointPolygonTest(roi_points, (cx, cy), False) < 0:
+                            if (
+                                cv2.pointPolygonTest(
+                                    roi_points, (cx, cy), False
+                                )
+                                < 0
+                            ):
                                 continue
 
                         ambulance_count += 1
 
                         # Draw RED box for ambulance
-                        cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 0, 255), 3)
+                        cv2.rectangle(
+                            frame, (x1, y1), (x2, y2), (0, 0, 255), 3
+                        )
 
             # =====================================================
             # 🔢 TOTAL COUNT
             # =====================================================
             total_count = (
-                car_count +
-                bus_count +
-                truck_count +
-                motorcycle_count +
-                ambulance_count
+                car_count
+                + bus_count
+                + truck_count
+                + motorcycle_count
+                + ambulance_count
             )
 
             # =====================================================
@@ -235,22 +265,22 @@ def video(cid):
                 "trucks": truck_count,
                 "motorcycles": motorcycle_count,
                 "ambulances": ambulance_count,
-                "is_emergency": ambulance_count > 0
+                "is_emergency": ambulance_count > 0,
             }
 
             # Encode frame
             _, buffer = cv2.imencode(".jpg", frame)
             yield (
                 b"--frame\r\n"
-                b"Content-Type: image/jpeg\r\n\r\n" +
-                buffer.tobytes() +
-                b"\r\n"
+                b"Content-Type: image/jpeg\r\n\r\n"
+                + buffer.tobytes()
+                + b"\r\n"
             )
 
     return Response(
-        generate(cam.ip),
-        mimetype="multipart/x-mixed-replace; boundary=frame"
+        generate(cam.ip), mimetype="multipart/x-mixed-replace; boundary=frame"
     )
+
 
 # --- POLLING STATE (Includes Ambulance Flag) ---
 @camera_bp.route("/state")
@@ -259,7 +289,7 @@ def state():
     cams_dict = {}
     for c in all_cams:
         live_data = LIVE_TRAFFIC_DATA.get(c.id, {})
-        
+
         # Handle fallback for first run
         if isinstance(live_data, int):
             count = live_data
@@ -269,11 +299,12 @@ def state():
             emb = live_data.get("is_emergency", False)
 
         cams_dict[c.id] = {
-            "light": c.light, 
+            "light": c.light,
             "vehicles": count,
-            "is_emergency": emb # Send flag to frontend
+            "is_emergency": emb,  # Send flag to frontend
         }
-    return jsonify({ "cameras": cams_dict, "mode": GLOBAL_MODE })
+    return jsonify({"cameras": cams_dict, "mode": GLOBAL_MODE})
+
 
 @camera_bp.route("/set_green", methods=["POST"])
 @login_required
@@ -283,35 +314,34 @@ def set_green():
     cam_id = data.get("id")
 
     if not cam_id:
-        return jsonify({"error":"Camera ID missing"}),400
+        return jsonify({"error": "Camera ID missing"}), 400
 
     target_cam = Camera.query.get(cam_id)
 
     if not target_cam:
-        return jsonify({"error":"Camera not found"}),404
-
+        return jsonify({"error": "Camera not found"}), 404
 
     # ✅ Check HUB MODE
-    hub_mode = HUB_MODE.get(target_cam.hub_id,"auto")
+    hub_mode = HUB_MODE.get(target_cam.hub_id, "auto")
 
     if hub_mode == "auto":
         print("❌ Manual blocked → Hub in AUTO mode")
-        return jsonify({"error":"Hub is in Auto Mode"}),403
-
+        return jsonify({"error": "Hub is in Auto Mode"}), 403
 
     # ✅ Manual Control Allowed
     cameras = Camera.query.filter_by(hub_id=target_cam.hub_id).all()
 
     for c in cameras:
-        c.light="red"
+        c.light = "red"
 
-    target_cam.light="green"
+    target_cam.light = "green"
 
     db.session.commit()
 
     print("✅ Manual GREEN:", target_cam.name)
 
-    return jsonify({"success":True})
+    return jsonify({"success": True})
+
 
 @camera_bp.route("/api/camera-status/<hub_id>")
 def get_camera_status(hub_id):
@@ -320,13 +350,14 @@ def get_camera_status(hub_id):
     data = {}
 
     for cam in hub.cameras:
-        live_data = LIVE_TRAFFIC_DATA.get(cam.id,{})
+        live_data = LIVE_TRAFFIC_DATA.get(cam.id, {})
 
         data[cam.id] = {
-            "vehicles": live_data.get("vehicles",0),
-            "light": cam.light
+            "vehicles": live_data.get("vehicles", 0),
+            "light": cam.light,
         }
     return jsonify(data)
+
 
 @camera_bp.route("/toggle_light", methods=["POSt"])
 @login_required
@@ -337,21 +368,20 @@ def toggle_light():
     hub_id = data["hub_id"]
 
     if not cam_id or not hub_id:
-        return jsonify({"success":False,"error":"missing data"}),400
-    
+        return jsonify({"success": False, "error": "missing data"}), 400
+
     cam = Camera.query.get(cam_id)
 
     if not cam:
-        return jsonify({"success":False,"error":"Camera not found"}),404
-    
-    hub_mode = HUB_MODE.get(hub_id,"auto")
+        return jsonify({"success": False, "error": "Camera not found"}), 404
+
+    hub_mode = HUB_MODE.get(hub_id, "auto")
 
     if hub_mode == "auto":
-        return jsonify({"error":"Hub is in Auto mode"}),403
-    
-    
+        return jsonify({"error": "Hub is in Auto mode"}), 403
+
     cameras = Camera.query.filter_by(hub_id=hub_id).all()
-    
+
     if cam.light != "green":
 
         for c in cameras:
@@ -361,10 +391,10 @@ def toggle_light():
         print(f"🟢 Manual GREEN -> {cam.name}")
 
     else:
-        
+
         cam.light = "red"
         print(f"🔴 Manual RED -> {cam.name}")
-    
+
     db.session.commit()
 
-    return jsonify({"success":True})
+    return jsonify({"success": True})
